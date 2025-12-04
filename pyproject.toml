@@ -7,12 +7,18 @@ readme = "README.md"
 requires-python = ">=3.10"
 license = { file = "LICENSE" }
 dependencies = [
-  "torch>=2.2",
-  "diffusers>=0.30",
+  "torch @ https://download.pytorch.org/whl/cu121/torch-2.4.1%2Bcu121-cp310-cp310-win_amd64.whl ; platform_system == \"Windows\" and python_version == \"3.10\"",
+  "torch @ https://download.pytorch.org/whl/cu121/torch-2.4.1%2Bcu121-cp311-cp311-win_amd64.whl ; platform_system == \"Windows\" and python_version == \"3.11\"",
+  "torch @ https://download.pytorch.org/whl/cu121/torch-2.4.1%2Bcu121-cp312-cp312-win_amd64.whl ; platform_system == \"Windows\" and python_version == \"3.12\"",
+  "torch @ https://download.pytorch.org/whl/cu121/torch-2.4.1%2Bcu121-cp310-cp310-linux_x86_64.whl ; platform_system == \"Linux\" and python_version == \"3.10\"",
+  "torch @ https://download.pytorch.org/whl/cu121/torch-2.4.1%2Bcu121-cp311-cp311-linux_x86_64.whl ; platform_system == \"Linux\" and python_version == \"3.11\"",
+  "torch @ https://download.pytorch.org/whl/cu121/torch-2.4.1%2Bcu121-cp312-cp312-linux_x86_64.whl ; platform_system == \"Linux\" and python_version == \"3.12\"",
+  "diffusers@git+https://github.com/huggingface/diffusers",
   "transformers>=4.41",
   "bitsandbytes>=0.43",
   "accelerate>=0.30",
   "pillow>=10.3",
+  "hf_xet>=0.4",
 ]
 
 [project.scripts]
@@ -21,3 +27,9 @@ vibe-zimage-gen = "vibe_zimage_gen.app:main"
 [build-system]
 requires = ["hatchling"]
 build-backend = "hatchling.build"
+
+[tool.hatch.metadata]
+allow-direct-references = true
+
+[tool.hatch.build.targets.wheel]
+packages = ["src/vibe_zimage_gen"]

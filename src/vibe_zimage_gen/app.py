@@ -9,58 +9,52 @@ from typing import Optional
 
 import torch
 from diffusers import PipelineQuantizationConfig, ZImagePipeline
-from diffusers.quantizers import quantize
+from packaging import version as pkg_version
 from PIL import Image, ImageTk
 import tkinter as tk
 from tkinter import ttk, messagebox
 
-MODEL_ID = "tongsuo/Z-image-Turbo"
+MODEL_ID = "Tongyi-MAI/Z-image-Turbo"
 OUTPUT_DIR = Path("outputs")
 
+# Prefer running on CUDA for correct performance; let the runtime verify availability.
 DEVICE = "cuda" if torch.cuda.is_available() else "cpu"
 DTYPE = torch.bfloat16 if DEVICE == "cuda" else torch.float32
+
+TORCH_VERSION = pkg_version.Version(torch.__version__.split("+")[0])
+if TORCH_VERSION < pkg_version.Version("2.5.0"):
+    # Torch < 2.5.0 can't handle the `enable_gqa` kwarg, so strip it for compatibility.
+    import torch.nn.functional as F  # type: ignore  # noqa: WPS433
+
+    _orig_sdpa = F.scaled_dot_product_attention
+
+    def _sdpa_no_gqa(*args, **kwargs):  # type: ignore[override]
+        kwargs.pop("enable_gqa", None)
+        return _orig_sdpa(*args, **kwargs)
+
+    F.scaled_dot_product_attention = _sdpa_no_gqa
 
 
 def _build_pipeline() -> ZImagePipeline:
     if DEVICE != "cuda":
-        raise RuntimeError(
-            "This app requires a CUDA-enabled GPU. Please run on a machine with an NVIDIA GPU."
-        )
+        raise RuntimeError("This app requires a CUDA-enabled GPU. Please run on a machine with an NVIDIA GPU.")
 
     pipeline_quant_config = PipelineQuantizationConfig(
-        backend="bitsandbytes_4bit",
-        weight_bits=4,
-        weight_quants=quantize.Int4QuantizerConfig(
-            calibration_tasks=["text_to_image"]
-        ),
-        activations_bits=8,
-        activations_quants=quantize.Uint8QuantizerConfig(
-            calibration_tasks=["text_to_image"]
-        ),
-        attn_implementation="flash_attention_2",
-        attn_dtype="bfloat16",
-        components_to_quantize="all",
-        attn_quantization="per_tensor",
-        bnb_4bit_use_double_quant=True,
-        bnb_4bit_quant_type="nf4",
-        # Z-image components are already in B DT for flash-attn
-        components_to_keep_in_fp32=["vae.decoder", "vae.encoder"],
-        components_to_keep_in_bf16=[
-            "transformers",
-            "text_encoder",
-            "text_encoder_2",
-        ],
+        quant_backend="bitsandbytes_4bit",
+        quant_kwargs={
+            "load_in_4bit": True,
+            "bnb_4bit_use_double_quant": True,
+            "bnb_4bit_quant_type": "nf4",
+            "bnb_4bit_compute_dtype": torch.bfloat16,
+        },
     )
 
-    pipeline = quantize(
-        ZImagePipeline.from_pretrained(
-            MODEL_ID,
-            torch_dtype=DTYPE,
-        ),
-        pipeline_quant_config,
+    pipeline = ZImagePipeline.from_pretrained(
+        MODEL_ID,
+        dtype=DTYPE,
+        quantization_config=pipeline_quant_config,
     ).to(DEVICE)
 
-    pipeline.unet.set_default_attn_processor("flash_attention_2")
     return pipeline
 
 
@@ -74,7 +68,9 @@ class ZImageApp:
         self.generating = False
 
         self.prompt_var = tk.StringVar(value="A super-serious cat CEO in a business suit.")
-        self.guidance_var = tk.DoubleVar(value=2.0)
+        self.guidance_var = tk.DoubleVar(value=0.0)
+        self.guidance_display_var = tk.StringVar(value=f"{self.guidance_var.get():.2f}")
+        self.guidance_var.trace_add("write", lambda *_: self._sync_guidance_display())
         self.steps_var = tk.IntVar(value=4)
         self.seed_var = tk.IntVar(value=4325)
 
@@ -99,13 +95,21 @@ class ZImageApp:
         controls.pack(fill=tk.X, pady=4)
 
         ttk.Label(controls, text="Guidance scale").grid(row=0, column=0, sticky=tk.W)
+        guidance_display = ttk.Entry(
+            controls,
+            textvariable=self.guidance_display_var,
+            width=6,
+            state="readonly",
+            justify="center",
+        )
+        guidance_display.grid(row=0, column=1, padx=(8, 4), sticky=tk.W)
         ttk.Scale(
             controls,
             variable=self.guidance_var,
             orient=tk.HORIZONTAL,
             from_=0.0,
             to=10.0,
-        ).grid(row=0, column=1, padx=8, sticky=tk.EW)
+        ).grid(row=0, column=2, padx=8, sticky=tk.EW)
 
         ttk.Label(controls, text="Steps").grid(row=1, column=0, sticky=tk.W)
         ttk.Spinbox(
@@ -125,16 +129,12 @@ class ZImageApp:
             width=10,
         ).grid(row=2, column=1, padx=8, sticky=tk.W)
 
-        controls.columnconfigure(1, weight=1)
+        controls.columnconfigure(2, weight=1)
 
-        generate_btn = ttk.Button(
-            main_frame, text="Generate", command=self._on_generate_clicked
-        )
+        generate_btn = ttk.Button(main_frame, text="Generate", command=self._on_generate_clicked)
         generate_btn.pack(fill=tk.X, pady=8)
 
-        status_label = ttk.Label(
-            main_frame, textvariable=self.status_var, foreground="gray"
-        )
+        status_label = ttk.Label(main_frame, textvariable=self.status_var, foreground="gray")
         status_label.pack(anchor=tk.W, pady=(0, 8))
 
         separator = ttk.Separator(main_frame, orient=tk.HORIZONTAL)
@@ -142,6 +142,9 @@ class ZImageApp:
 
         self._image_label = ttk.Label(main_frame, text="Image preview will appear here")
         self._image_label.pack(fill=tk.BOTH, expand=True)
+
+    def _sync_guidance_display(self) -> None:
+        self.guidance_display_var.set(f"{self.guidance_var.get():.2f}")
 
     def _load_pipeline(self) -> None:
         if self.pipeline is not None:
@@ -192,7 +195,6 @@ class ZImageApp:
                 height=1024,
                 width=1024,
                 generator=generator,
-                output_type="pil",
             )
             image: Image.Image = result.images[0]
         except Exception as exc:  # noqa: BLE001 - surface generation failures

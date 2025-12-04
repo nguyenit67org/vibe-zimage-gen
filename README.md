@@ -10,6 +10,7 @@ A lightweight Tkinter GUI for generating images from text prompts using the quan
 - An NVIDIA GPU with CUDA drivers and at least ~16 GB of VRAM
 - [uv](https://github.com/astral-sh/uv) package manager installed (`curl -LsSf https://astral.sh/uv/install.sh | sh`)
 - Access to the `tongsuo/Z-image-Turbo` model on Hugging Face (ensure you have accepted the model license if required)
+- PyTorch CUDA 12.1 wheels are installed automatically for Python 3.10–3.12 on Windows/Linux x86_64. Update `pyproject.toml` if you need a different CUDA toolkit or platform.
 
 ## Installation
 
