@@ -1,0 +1,23 @@
+[project]
+name = "vibe-zimage-gen"
+version = "0.1.0"
+description = "Simple GUI to generate images with ZImage Turbo using quantized diffusion"
+authors = [{ name = "Vibe AI" }]
+readme = "README.md"
+requires-python = ">=3.10"
+license = { file = "LICENSE" }
+dependencies = [
+  "torch>=2.2",
+  "diffusers>=0.30",
+  "transformers>=4.41",
+  "bitsandbytes>=0.43",
+  "accelerate>=0.30",
+  "pillow>=10.3",
+]
+
+[project.scripts]
+vibe-zimage-gen = "vibe_zimage_gen.app:main"
+
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
