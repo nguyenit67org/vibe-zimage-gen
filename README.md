@@ -1,6 +1,6 @@
 # Vibe Z-Image Generator
 
-A lightweight Tkinter GUI for generating images from text prompts using the quantized [tongsuo/Z-image-Turbo](https://huggingface.co/tongsuo/Z-image-Turbo) model. The app reproduces the setup shown in the reference snippet while providing a simple interface for experimenting with prompts.
+A lightweight Tkinter GUI for generating images from text prompts using the quantized [Tongyi-MAI/Z-Image-Turbo](https://huggingface.co/Tongyi-MAI/Z-Image-Turbo) model. The app reproduces the setup shown in the reference snippet while providing a simple interface for experimenting with prompts.
 
 > **Note:** The pipeline is optimized for CUDA GPUs and requires a machine with an NVIDIA GPU that supports bfloat16. CPU execution is not recommended.
 
@@ -9,7 +9,7 @@ A lightweight Tkinter GUI for generating images from text prompts using the quan
 - Python 3.10+
 - An NVIDIA GPU with CUDA drivers and at least ~16 GB of VRAM
 - [uv](https://github.com/astral-sh/uv) package manager installed (`curl -LsSf https://astral.sh/uv/install.sh | sh`)
-- Access to the `tongsuo/Z-image-Turbo` model on Hugging Face (ensure you have accepted the model license if required)
+- Access to the `Tongyi-MAI/Z-Image-Turbo` model on Hugging Face (ensure you have accepted the model license if required)
 - PyTorch CUDA 12.1 wheels are installed automatically for Python 3.10–3.12 on Windows/Linux x86_64. Update `pyproject.toml` if you need a different CUDA toolkit or platform.
 
 ## Installation
